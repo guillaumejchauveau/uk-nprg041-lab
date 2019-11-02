@@ -3,6 +3,7 @@
 
 #include "list.h"
 
-void bubblesort (struct list *L);
+template<typename T>
+void bubblesort(T *L);
 
 #endif
