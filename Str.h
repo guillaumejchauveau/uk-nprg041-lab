@@ -1,61 +1,62 @@
-//
-// Created by guillaumejchauveau on 23/10/2019.
-//
-
 #ifndef LAB__STR_H_
 #define LAB__STR_H_
 #include <cstddef>
 #include <iostream>
 
 class Str {
+ private:
+  char *s_;
  public:
-  char *s;
-  Str() {
-    s = nullptr;
-  }
-  Str(const Str &text) {
-    s = nullptr;
-    assign(text.s);
-  }
-  ~Str() {
-    clear();
-  }
-  void clear() {
-    delete s;
-    s = nullptr;
-  }
-  Str &operator=(const char *text) {
-    assign(text);
-    return *this;
-  }
-  Str &operator=(const Str &text) {
-    assign(text.s);
-    return *this;
-  }
-  void assign(const char *text) {
-    size_t length = 0;
-    while (text[length++]);
-    s = new char[length + 1]{0};
-    for (size_t i = 0; i < length; i++) {
-      s[i] = text[i];
-    }
-  }
-  size_t length() const {
-    size_t length = 0;
-    while (s[length++]);
-    return length;
-  }
-  char &operator[](int index) {
-    return s[index];
-  }
+  Str();
+  ~Str();
 
-  const char &operator[](int index) const {
-    return s[index];
-  }
+  Str(const Str &str);
+
+  explicit Str(const char *other);
+
+  Str(Str &&other) noexcept;
+
+  Str &operator=(const char *str);
+
+  Str &operator=(const Str &str);
+
+  Str &operator=(Str &&str) noexcept;
+
+  Str operator+(const Str &b);
+
+  char &operator[](size_t index);
+
+  const char &operator[](size_t index) const;
+
+  size_t length() const;
+
+  void clear();
+
+  void assign(const char *text);
+
+  class iterator {
+   private:
+    char *ptr_;
+
+   public:
+    iterator(const iterator &other);
+
+    explicit iterator(char *c);
+
+    char &operator*();
+
+    bool operator==(const iterator &other);
+
+    bool operator!=(const iterator &other);
+
+    iterator &operator++();
+  };
+
+  iterator begin() const;
+
+  iterator end() const;
 };
 
-std::ostream &operator<<(std::ostream &stream, const Str &text) {
-  return stream << text.s;
-}
+std::ostream &operator<<(std::ostream &o, const Str &str);
 
 #endif //LAB__STR_H_
