@@ -1,0 +1,7 @@
+find_package(Catch2 REQUIRED)
+add_executable(tests main.cpp aint.cpp)
+target_link_libraries(tests aint Catch2::Catch2)
+include(CTest)
+include(Catch)
+catch_discover_tests(tests)
+add_test(NAME tests COMMAND tests)

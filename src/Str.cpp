@@ -1,4 +1,4 @@
-#include "Str.h"
+#include "Str.hpp"
 
 Str::Str() {
   this->s_ = nullptr;

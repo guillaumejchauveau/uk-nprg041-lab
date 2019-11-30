@@ -10,4 +10,10 @@ jobs:
       - uses: actions/upload-artifact@v1
         with:
           name: build
-          path: Lab
+          path: src/lab
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: cmake -G "Unix Makefiles" ./ && make
+      - run: make test
