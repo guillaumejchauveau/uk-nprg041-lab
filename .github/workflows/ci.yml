@@ -9,9 +9,9 @@ jobs:
         with:
           repository: catchorg/Catch2
           ref: master
-      - cd /home/runner/work/uk-nprg041-lab/Catch2
-      - cmake -Bbuild -H. -DBUILD_TESTING=OFF
-      - sudo cmake --build build/ --target install
+      - run: cd /home/runner/work/uk-nprg041-lab/Catch2
+      - run: cmake -Bbuild -H. -DBUILD_TESTING=OFF
+      - run: sudo cmake --build build/ --target install
       - uses: actions/checkout@v1 
       - run: cmake -G "Unix Makefiles" ./ && make
       - uses: actions/upload-artifact@v1
@@ -25,9 +25,9 @@ jobs:
         with:
           repository: catchorg/Catch2
           ref: master
-      - cd /home/runner/work/uk-nprg041-lab/Catch2
-      - cmake -Bbuild -H. -DBUILD_TESTING=OFF
-      - sudo cmake --build build/ --target install
+      - run: cd /home/runner/work/uk-nprg041-lab/Catch2
+      - run: cmake -Bbuild -H. -DBUILD_TESTING=OFF
+      - run: sudo cmake --build build/ --target install
       - uses: actions/checkout@v1
       - run: cmake -G "Unix Makefiles" ./ && make
       - run: make test
