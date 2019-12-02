@@ -3,27 +3,29 @@ name: CI
 on: [push]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v1
-        with:
-          repository: catchorg/Catch2
-          ref: master
-      - run: cd /home/runner/work/uk-nprg041-lab/Catch2; cmake -Bbuild -H. -DBUILD_TESTING=OFF; sudo cmake --build build/ --target install
       - uses: actions/checkout@v1 
       - run: cmake -G "Unix Makefiles" ./ && make
       - uses: actions/upload-artifact@v1
         with:
-          name: build
+          name: build-${{ matrix.os }}
           path: src/lab
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
+      - uses: actions/upload-artifact@v1
         with:
-          repository: catchorg/Catch2
-          ref: master
-      - run: cd /home/runner/work/uk-nprg041-lab/Catch2; cmake -Bbuild -H. -DBUILD_TESTING=OFF; sudo cmake --build build/ --target install
-      - uses: actions/checkout@v1
-      - run: cmake -G "Unix Makefiles" ./ && make
-      - run: make test
+          name: tests-${{ matrix.os }}
+          path: tests/tests
+  test:
+    runs-on: ${{ matrix.os }}
+    needs: build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/download-artifact@v1
+        with:
+          name: tests-${{ matrix.os }}
+      - run: tests/tests

@@ -10,8 +10,8 @@ int main() {
   v.size = 5;
   v[2] = 5;
   std::cout << v[2] << std::endl;*/
-  aint a = const_cast<char *>("0");
-  aint b = std::move(a);
-
-  std::cout << b << std::endl;
+  aint a = const_cast<char *>("11");
+  aint b = const_cast<char *>("1");
+  aint c = a + b;
+  std::cout << c << std::endl;
 }
