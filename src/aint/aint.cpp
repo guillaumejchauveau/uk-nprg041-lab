@@ -8,9 +8,9 @@
  * UTILS
  */
 
-void aint::breakout_double_block(const dblock_t &d, block_t &s1, block_t &s2) {
-  s1 = static_cast<uint32_t> (d);
-  s2 = static_cast<uint32_t> (d >> BLOCK_WIDTH);
+void aint::breakout_dblock(const dblock_t &du, block_t &u0, block_t &u1) {
+  u0 = static_cast<uint32_t> (du);
+  u1 = static_cast<uint32_t> (du >> BLOCK_WIDTH);
 }
 
 /**
@@ -26,6 +26,12 @@ aint::aint(block_t u) {
   this->size_ = 0;
   this->blocks_ = nullptr;
   this->operator=(u);
+}
+aint::aint(dblock_t du) {
+  this->capacity_ = 0;
+  this->size_ = 0;
+  this->blocks_ = nullptr;
+  this->operator=(du);
 }
 aint::aint(char *str) {
   this->capacity_ = 0;
@@ -52,8 +58,22 @@ aint &aint::operator=(block_t u) {
     return *this;
   }
   this->resize(1);
-  *this->blocks_ = u;
+  this->blocks_[0] = u;
   this->size_ = 1;
+  return *this;
+}
+aint &aint::operator=(dblock_t du) {
+  if (du == 0) {
+    this->resize(0);
+    return *this;
+  }
+  this->resize(2);
+  block_t u0, u1;
+  aint::breakout_dblock(du, u0, u1);
+  this->blocks_[0] = u0;
+  this->blocks_[1] = u1;
+  this->size_ = 2;
+  this->refresh_size();
   return *this;
 }
 aint &aint::operator=(char *str) {
@@ -73,14 +93,13 @@ aint &aint::operator=(char *str) {
       } else if (c == '\0') {
         break;
       } else if (c != '0') {
+        this->resize(0);
         throw std::invalid_argument("str");
       }
     }
     this->blocks_[block_number] = block;
   }
-  size_t real_block_count = this->size();
-  for (; this->blocks_[real_block_count - 1] == 0 && real_block_count > 0; real_block_count--);
-  this->resize(real_block_count);
+  this->refresh_size();
   return *this;
 }
 aint &aint::operator=(const aint &other) {
@@ -137,16 +156,17 @@ void aint::resize(size_t n) {
     this->size_ = 0;
     return;
   }
-  this->blocks_ = static_cast<block_t *>(realloc(this->blocks_, n * sizeof(block_t)));
-  if (this->blocks_ == nullptr) {
+  auto new_blocks = static_cast<block_t *>(realloc(this->blocks_, n * sizeof(block_t)));
+  if (new_blocks == nullptr) {
     throw std::bad_alloc();
   }
+  this->blocks_ = new_blocks;
   this->capacity_ = n;
   if (this->size() > this->capacity()) {
     this->size_ = n;
   }
   for (size_t i = this->size(); i < this->capacity(); i++) {
-	  this->blocks_[i] = 0;
+    this->blocks_[i] = 0;
   }
 }
 
@@ -156,10 +176,16 @@ void aint::reserve(size_t n) {
   }
 }
 void aint::shrink_to_fit() {
+  this->refresh_size();
   this->resize(this->size());
 }
+void aint::refresh_size() {
+  size_t real_block_count = this->size();
+  for (; real_block_count > 0 && this->blocks_[real_block_count - 1] == 0; real_block_count--);
+  this->size_ = real_block_count;
+}
 
-void aint::swap(aint &other) {
+void aint::swap(aint &other) noexcept {
   if (this == &other) {
     return;
   }
@@ -205,7 +231,6 @@ char *aint::to_string() const {
       }
     }
   }
-
   return render;
 }
 
@@ -323,12 +348,11 @@ aint &aint::operator+=(const aint &other) {
     return *this;
   }
   size_t new_size = this->size() + 1;
-  if (this->capacity() < other.size() + 1) {
-    this->resize(other.size() + 1);
+  if (this->size() < other.size()) {
     new_size = other.size() + 1;
-  } else if (this->capacity() == this->size()) {
-    this->resize(this->size() + 1);
   }
+  this->reserve(new_size);
+
   bool overflow = false;
   for (size_t i = 0; i < new_size; i++) {
     if (this->blocks_[i] == 0) {
@@ -345,15 +369,13 @@ aint &aint::operator+=(const aint &other) {
       }
     }
   }
-  this->size_ = new_size - 1;
-  if (this->blocks_[this->size()] != 0) {
-    this->size_++;
-  }
+  this->size_ = new_size;
+  this->refresh_size();
   return *this;
 }
 aint &aint::operator-=(const aint &other) {
   if (other > *this) {
-    throw std::invalid_argument("other");
+    throw std::invalid_argument("Cannot subtract a higher number");
   }
   bool overflow = false;
   block_t tmp;
@@ -373,9 +395,7 @@ aint &aint::operator-=(const aint &other) {
       }
     }
   }
-  if (this->blocks_[this->size() - 1] == 0) {
-    this->size_--;
-  }
+  this->refresh_size();
   return *this;
 }
 aint &aint::operator*=(const aint &other) {
@@ -383,27 +403,79 @@ aint &aint::operator*=(const aint &other) {
     return *this;
   }
   if (other.zero()) {
-    *this = other;
+    *this = 0u;
     return *this;
   }
+  aint result, product;
+  result.reserve(this->size() + other.size());
+
+  for (size_t o_i = 0; o_i < other.size(); o_i++) {
+    for (size_t t_i = 0; t_i < this->size(); t_i++) {
+      product = static_cast<dblock_t>(this->blocks_[t_i]) * static_cast<dblock_t>(other.blocks_[o_i]);
+      product <<= (t_i + o_i) * BLOCK_WIDTH;
+      result += product;
+    }
+  }
+  result.size_ = this->size() + other.size();
+  *this = result;
+  this->refresh_size();
   return *this;
 }
 aint &aint::operator/=(const aint &other) {
   if (other.zero()) {
-    throw std::invalid_argument("other");
+    throw std::invalid_argument("division by zero");
   }
   if (this->zero()) {
     return *this;
   }
+  if (*this < other) {
+    *this = 0u;
+    return *this;
+  }
+  size_t bit_count = this->size() * BLOCK_WIDTH;
+  if (bit_count < this->size()) {
+    throw std::overflow_error("Dividend size too large for bit-shifting");
+  }
+  aint divisor = other, divisor_pow = 1u;
+  divisor <<= bit_count; // Align divisor with dividend.
+  divisor_pow <<= bit_count; // Save the power of the divisor for the quotient.
+  aint &rest = *this; // Just to keep the code clear without creating a new aint.
+  aint quotient;
+  while (rest >= other) {
+    if (rest >= divisor) {
+      rest -= divisor;
+      quotient += divisor_pow;
+    } else {
+      divisor >>= 1;
+      divisor_pow >>= 1;
+    }
+  }
+  *this = std::move(quotient);
   return *this;
 }
 aint &aint::operator%=(const aint &other) {
   if (other.zero()) {
-    throw std::invalid_argument("other");
+    throw std::invalid_argument("division by zero");
   }
   if (this->zero()) {
     *this = other;
     return *this;
+  }
+  if (*this < other) {
+    return *this;
+  }
+  size_t bit_count = this->size() * BLOCK_WIDTH;
+  if (bit_count < this->size()) {
+    throw std::overflow_error("Dividend size too large for bit-shifting");
+  }
+  aint divisor = other;
+  divisor <<= bit_count; // Align divisor with dividend.
+  while (*this >= other) {
+    if (*this >= divisor) {
+      *this -= divisor;
+    } else {
+      divisor >>= 1;
+    }
   }
   return *this;
 }
@@ -425,12 +497,12 @@ aint &aint::operator<<=(size_t offset) {
     }
     this->blocks_[i - 1] = 0;
     this->blocks_[i - 1 + block_offset] = new_block_a;
-    this->blocks_[i - 1 + block_offset + 1] += new_block_b;
+    if (new_block_b != 0) {
+      this->blocks_[i - 1 + block_offset + 1] += new_block_b;
+    }
   }
-  this->size_ = new_size - 1;
-  if (this->blocks_[this->size()] != 0) {
-    this->size_++;
-  }
+  this->size_ = new_size;
+  this->refresh_size();
   return *this;
 }
 aint &aint::operator>>=(size_t offset) {
@@ -439,6 +511,10 @@ aint &aint::operator>>=(size_t offset) {
   }
 
   size_t block_offset = offset / BLOCK_WIDTH;
+  if (block_offset >= this->size()) {
+    *this = 0u;
+    return *this;
+  }
   block_t new_block_a, new_block_b;
   for (size_t i = 0; i < this->size(); i++) {
     if (offset % BLOCK_WIDTH == 0) {
@@ -457,9 +533,7 @@ aint &aint::operator>>=(size_t offset) {
   }
 
   this->size_ -= block_offset;
-  if (this->blocks_[this->size() - 1] == 0) {
-    this->size_--;
-  }
+  this->refresh_size();
   return *this;
 }
 
@@ -467,40 +541,40 @@ aint &aint::operator>>=(size_t offset) {
  * OPERATIONS
  */
 
-aint &aint::operator+(const aint &other) const {
-  auto res = new aint(*this);
-  *res += other;
-  return *res;
+aint aint::operator+(const aint &other) const {
+  aint res = *this;
+  res += other;
+  return res;
 }
-aint &aint::operator-(const aint &other) const {
-  auto res = new aint(*this);
-  *res -= other;
-  return *res;
+aint aint::operator-(const aint &other) const {
+  aint res = *this;
+  res -= other;
+  return res;
 }
-aint &aint::operator*(const aint &other) const {
-  auto res = new aint(*this);
-  *res *= other;
-  return *res;
+aint aint::operator*(const aint &other) const {
+  aint res = *this;
+  res *= other;
+  return res;
 }
-aint &aint::operator/(const aint &other) const {
-  auto res = new aint(*this);
-  *res /= other;
-  return *res;
+aint aint::operator/(const aint &other) const {
+  aint res = *this;
+  res /= other;
+  return res;
 }
-aint &aint::operator%(const aint &other) const {
-  auto res = new aint(*this);
-  *res %= other;
-  return *res;
+aint aint::operator%(const aint &other) const {
+  aint res = *this;
+  res %= other;
+  return res;
 }
-aint &aint::operator<<(size_t offset) const {
-  auto res = new aint(*this);
-  *res <<= offset;
-  return *res;
+aint aint::operator<<(size_t offset) const {
+  aint res = *this;
+  res <<= offset;
+  return res;
 }
-aint &aint::operator>>(size_t offset) const {
-  auto res = new aint(*this);
-  *res >>= offset;
-  return *res;
+aint aint::operator>>(size_t offset) const {
+  aint res = *this;
+  res >>= offset;
+  return res;
 }
 
 /**
