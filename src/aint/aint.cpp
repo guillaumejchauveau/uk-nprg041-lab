@@ -4,18 +4,18 @@
 #include <cstring>
 #include <cmath>
 
-/**
+/*******
  * UTILS
- */
+ *******/
 
 void aint::breakout_dblock(const dblock_t &du, block_t &u0, block_t &u1) {
   u0 = static_cast<uint32_t> (du);
   u1 = static_cast<uint32_t> (du >> BLOCK_WIDTH);
 }
 
-/**
+/**************************
  * CONSTRUCTORS/ASSIGNMENTS
- */
+ **************************/
 aint::aint() {
   this->capacity_ = 0;
   this->size_ = 0;
@@ -84,12 +84,12 @@ aint &aint::operator=(char *str) {
   }
   this->resize(str_block_count);
   this->size_ = this->capacity();
-  for (size_t block_number = 0; block_number < this->size(); block_number++) {
+  for (size_t block_index = 0; block_index < this->size(); block_index++) {
     block_t block = 0;
-    for (int b = 0; b < BLOCK_WIDTH; b++) {
-      char c = str[block_number * BLOCK_WIDTH + b];
+    for (int bit_index = 0; bit_index < BLOCK_WIDTH; bit_index++) {
+      char c = str[block_index * BLOCK_WIDTH + bit_index];
       if (c == '1') {
-        block += std::pow(2, b);
+        block += std::pow(2, bit_index);
       } else if (c == '\0') {
         break;
       } else if (c != '0') {
@@ -97,7 +97,7 @@ aint &aint::operator=(char *str) {
         throw std::invalid_argument("str");
       }
     }
-    this->blocks_[block_number] = block;
+    this->blocks_[block_index] = block;
   }
   this->refresh_size();
   return *this;
@@ -127,17 +127,17 @@ aint &aint::operator=(aint &&other) noexcept {
   return *this;
 }
 
-/**
+/************
  * DESTRUCTOR
- */
+ ************/
 
 aint::~aint() {
   free(this->blocks_);
 }
 
-/**
+/*********
  * MEMBERS
- */
+ *********/
 
 size_t aint::capacity() const noexcept {
   return this->capacity_;
@@ -220,13 +220,13 @@ char *aint::to_string() const {
     throw std::bad_alloc();
   }
 
-  for (size_t block_number = 0; block_number < this->size(); block_number++) {
-    block_t block = this->blocks_[block_number];
-    for (int b = 0; b < BLOCK_WIDTH; b++) {
-      render[block_number * BLOCK_WIDTH + b] = block % 2 ? '1' : '0';
+  for (size_t block_index = 0; block_index < this->size(); block_index++) {
+    block_t block = this->blocks_[block_index];
+    for (int bit_index = 0; bit_index < BLOCK_WIDTH; bit_index++) {
+      render[block_index * BLOCK_WIDTH + bit_index] = block % 2 ? '1' : '0';
       block /= 2;
-      if (block_number == this->size() - 1 && block == 0) {
-        render[block_number * BLOCK_WIDTH + b + 1] = '\0';
+      if (block_index == this->size() - 1 && block == 0) {
+        render[block_index * BLOCK_WIDTH + bit_index + 1] = '\0';
         break;
       }
     }
@@ -234,9 +234,9 @@ char *aint::to_string() const {
   return render;
 }
 
-/**
+/*************
  * COMPARATORS
- */
+ *************/
 
 bool aint::operator<(const aint &other) const {
   if (this->size() < other.size()) {
@@ -339,9 +339,9 @@ bool aint::operator!=(const aint &other) const {
   return false;
 }
 
-/**
+/***************
  * ACCUMULATIONS
- */
+ ***************/
 aint &aint::operator+=(const aint &other) {
   if (this->zero()) {
     *this = other;
