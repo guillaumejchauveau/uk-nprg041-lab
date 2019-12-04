@@ -53,7 +53,7 @@ class aint {
   ~aint();
 
   aint(block_t u);
-  aint(dblock_t du);
+  static aint from_dblock(dblock_t du);
   aint(char *str);
   aint(const aint &other);
   aint(aint &&other) noexcept;
@@ -64,12 +64,6 @@ class aint {
    * @return self
    */
   aint &operator=(block_t u);
-  /**
-   * Replaces the blocks of the aint with two blocks.
-   * @param du The value for the new blocks
-   * @return self
-   */
-  aint &operator=(dblock_t du);
   /**
    * Parses a little-endian binary representation of an unsigned integer uses it
    * to set the aint's value.

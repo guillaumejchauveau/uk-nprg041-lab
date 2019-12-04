@@ -27,11 +27,19 @@ aint::aint(block_t u) {
   this->blocks_ = nullptr;
   this->operator=(u);
 }
-aint::aint(dblock_t du) {
-  this->capacity_ = 0;
-  this->size_ = 0;
-  this->blocks_ = nullptr;
-  this->operator=(du);
+aint aint::from_dblock(const dblock_t du) {
+  if (du == 0) {
+    return aint();
+  }
+  aint a;
+  a.resize(2);
+  block_t u0, u1;
+  aint::breakout_dblock(du, u0, u1);
+  a.blocks_[0] = u0;
+  a.blocks_[1] = u1;
+  a.size_ = 2;
+  a.refresh_size();
+  return a;
 }
 aint::aint(char *str) {
   this->capacity_ = 0;
@@ -60,20 +68,6 @@ aint &aint::operator=(block_t u) {
   this->resize(1);
   this->blocks_[0] = u;
   this->size_ = 1;
-  return *this;
-}
-aint &aint::operator=(dblock_t du) {
-  if (du == 0) {
-    this->resize(0);
-    return *this;
-  }
-  this->resize(2);
-  block_t u0, u1;
-  aint::breakout_dblock(du, u0, u1);
-  this->blocks_[0] = u0;
-  this->blocks_[1] = u1;
-  this->size_ = 2;
-  this->refresh_size();
   return *this;
 }
 aint &aint::operator=(char *str) {
@@ -411,7 +405,9 @@ aint &aint::operator*=(const aint &other) {
 
   for (size_t o_i = 0; o_i < other.size(); o_i++) {
     for (size_t t_i = 0; t_i < this->size(); t_i++) {
-      product = static_cast<dblock_t>(this->blocks_[t_i]) * static_cast<dblock_t>(other.blocks_[o_i]);
+      product = aint::from_dblock(
+          static_cast<dblock_t>(this->blocks_[t_i])
+              * static_cast<dblock_t>(other.blocks_[o_i]));
       product <<= (t_i + o_i) * BLOCK_WIDTH;
       result += product;
     }
@@ -585,4 +581,35 @@ std::ostream &operator<<(std::ostream &o, const aint &ai) {
   o << str;
   free(str);
   return o;
+}
+
+size_t add_char_to_buffer(char c, char **buffer, size_t buffer_length) {
+  if (strlen(*buffer) + 2 > buffer_length) {
+    buffer_length *= 2;
+    char *new_buffer = static_cast<char *>(realloc(*buffer, buffer_length * sizeof(char)));
+    if (new_buffer == nullptr) {
+      throw std::bad_alloc();
+    }
+    *buffer = new_buffer;
+  }
+  strncat(*buffer, &c, 1);
+  return buffer_length;
+}
+
+std::istream &operator>>(std::istream &i, aint &ai) {
+  size_t input_buffer_length = 5;
+  char *input = static_cast<char *>(calloc(input_buffer_length, sizeof(char)));
+  for (int c = i.get(); c != '\n' || i.eof(); c = i.get()) {
+    if (!std::isspace(c)) {
+      input_buffer_length = add_char_to_buffer(static_cast<char>(c), &input, input_buffer_length);
+    }
+  }
+  try {
+    ai = input;
+  }
+  catch (const std::invalid_argument &) {
+    i.setstate(std::ios::failbit);
+  }
+  free(input);
+  return i;
 }
