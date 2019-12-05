@@ -2,13 +2,15 @@
 
 template<typename T>
 class SVector : public std::vector<T> {
- private:
+private:
   class RefProxy {
-    T *ptr;
-   public:
-    RefProxy(T *other = nullptr) : ptr{other} {}
+    T* ptr;
+  public:
+    RefProxy(T* other = nullptr)
+            :ptr{ other } {
+    }
 
-    RefProxy &operator=(const T &rvalue) {
+    RefProxy& operator=(const T& rvalue) {
       if (ptr) {
         *ptr = rvalue;
       }
@@ -23,22 +25,24 @@ class SVector : public std::vector<T> {
   };
 
   class SizeProxy {
-    SVector<T> *v_p;
-   public:
-    SizeProxy(SVector *v_p) : v_p{v_p} {}
+    SVector<T>* v_p;
+  public:
+    SizeProxy(SVector* v_p)
+            :v_p{ v_p } {
+    }
 
-    SizeProxy &operator=(size_t length) {
+    SizeProxy& operator=(size_t length) {
       this->v_p->resize(length);
       return *this;
     }
 
     operator size_t() {
-      return static_cast<std::vector<T> *> (this->v_p)->size();
+      return static_cast<std::vector<T>*> (this->v_p)->size();
     }
 
   };
 
- public:
+public:
   SizeProxy size = this;
 
   RefProxy operator[](size_t index) {

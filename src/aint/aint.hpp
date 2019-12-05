@@ -23,9 +23,12 @@ typedef uint64_t dblock_t;
  * Trailing blocks are the last of the a-integer's blocks, but actually contain
  * the most significant value. The blocks can be seen as a little endian
  * representation with a 2^32 base.
+ * The trailing blocks are never removed by standard operations, hence the
+ * capacity of the a-integer will only grow, unless the user calls
+ * aint::shrink_to_fit().
  */
 class aint {
- protected:
+protected:
   /**
    * Current number of blocks allocated in memory.
    */
@@ -37,7 +40,7 @@ class aint {
   /**
    * Array containing the blocks.
    */
-  block_t *blocks_;
+  block_t* blocks_;
   /**
    * Splits a 64 bits unsigned integer (or double-block) into two 32 bits
    * unsigned integers (simple blocks).
@@ -47,32 +50,33 @@ class aint {
    * @param u1 The block that will contain the last 32 bits (bits 32 to 63) of
    * the double-block
    */
-  static void breakout_dblock(const dblock_t &du, block_t &u0, block_t &u1);
- public:
+  static void breakout_dblock(const dblock_t& du, block_t& u0, block_t& u1);
+public:
   aint();
   ~aint();
 
   aint(block_t u);
   static aint from_dblock(dblock_t du);
-  aint(char *str);
-  aint(const aint &other);
-  aint(aint &&other) noexcept;
+  aint(char* str);
+  aint(const aint& other);
+  aint(aint&& other) noexcept;
 
   /**
    * Replaces the blocks of the aint with a single block.
    * @param u The value for the new block
    * @return self
    */
-  aint &operator=(block_t u);
+  aint& operator=(block_t u);
   /**
    * Parses a little-endian binary representation of an unsigned integer uses it
    * to set the aint's value.
    * @param str A little-endian binary representation of an unsigned integer
    * @return self
+   * @throw std::invalid_argument Thrown if a parsing error occurs
    */
-  aint &operator=(char *str);
-  aint &operator=(const aint &other);
-  aint &operator=(aint &&other) noexcept;
+  aint& operator=(char* str);
+  aint& operator=(const aint& other);
+  aint& operator=(aint&& other) noexcept;
 
   /**
    * Checks if the aint equals zero.
@@ -81,9 +85,9 @@ class aint {
   /**
    * @return A little-endian binary representation of the aint
    */
-  char *to_string() const;
+  char* to_string() const;
 
-  void swap(aint &other) noexcept;
+  void swap(aint& other) noexcept;
   /**
    * @return Current number of blocks representing the aint.
    */
@@ -114,41 +118,43 @@ class aint {
   void shrink_to_fit();
   /**
    * Decreases the current size of to the first non-zero "trailing" block.
+   * @note
+   * Used internally to ensure the size is correct after any operation.
    */
   void refresh_size();
 
-  bool operator<(const aint &other) const;
-  bool operator>(const aint &other) const;
-  bool operator<=(const aint &other) const;
-  bool operator>=(const aint &other) const;
-  bool operator==(const aint &other) const;
-  bool operator!=(const aint &other) const;
+  bool operator<(const aint& other) const;
+  bool operator>(const aint& other) const;
+  bool operator<=(const aint& other) const;
+  bool operator>=(const aint& other) const;
+  bool operator==(const aint& other) const;
+  bool operator!=(const aint& other) const;
 
-  aint &operator+=(const aint &other);
-  aint &operator-=(const aint &other);
-  aint &operator*=(const aint &other);
-  aint &operator/=(const aint &other);
-  aint &operator%=(const aint &other);
-  aint &operator<<=(size_t offset);
-  aint &operator>>=(size_t offset);
+  aint& operator+=(const aint& other);
+  aint& operator-=(const aint& other);
+  aint& operator*=(const aint& other);
+  aint& operator/=(const aint& other);
+  aint& operator%=(const aint& other);
+  aint& operator<<=(size_t offset);
+  aint& operator>>=(size_t offset);
 
-  aint operator+(const aint &other) const;
-  aint operator-(const aint &other) const;
-  aint operator*(const aint &other) const;
-  aint operator/(const aint &other) const;
-  aint operator%(const aint &other) const;
+  aint operator+(const aint& other) const;
+  aint operator-(const aint& other) const;
+  aint operator*(const aint& other) const;
+  aint operator/(const aint& other) const;
+  aint operator%(const aint& other) const;
   aint operator<<(size_t offset) const;
   aint operator>>(size_t offset) const;
 
-  friend std::ostream &operator<<(std::ostream &o, const aint &ai);
-  friend std::istream &operator>>(std::istream &o, aint &ai);
+  friend std::ostream& operator<<(std::ostream& o, const aint& ai);
+  friend std::istream& operator>>(std::istream& i, aint& ai);
 
 #ifdef TEST
   /**
    * FOR TESTING PURPOSES.
    * @return The array of blocks
    */
-  const block_t *get_blocks() {
+  const block_t* get_blocks() {
     return this->blocks_;
   }
 #endif

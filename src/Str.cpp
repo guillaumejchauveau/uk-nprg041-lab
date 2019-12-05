@@ -7,36 +7,37 @@ Str::~Str() {
   this->clear();
 }
 
-Str::Str(const Str &str) {
+Str::Str(const Str& str) {
   this->s_ = nullptr;
   this->assign(str.s_);
 }
 
-Str::Str(const char *other) {
+Str::Str(const char* other) {
   this->s_ = nullptr;
   this->assign(other);
 }
 
-Str::Str(Str &&other) noexcept : s_(other.s_) {
+Str::Str(Str&& other) noexcept
+        :s_(other.s_) {
   other.s_ = nullptr;
 }
 
-Str &Str::operator=(const char *str) {
+Str& Str::operator=(const char* str) {
   this->assign(str);
   return *this;
 }
 
-Str &Str::operator=(const Str &str) {
+Str& Str::operator=(const Str& str) {
   this->assign(str.s_);
   return *this;
 }
 
-Str &Str::operator=(Str &&str) noexcept {
+Str& Str::operator=(Str&& str) noexcept {
   std::swap(this->s_, str.s_);
   return *this;
 }
 
-Str Str::operator+(const Str &b) {
+Str Str::operator+(const Str& b) {
   Str res;
   if (!this->s_ || !b.s_) {
     return res;
@@ -45,13 +46,13 @@ Str Str::operator+(const Str &b) {
   size_t bufferSize = length() + b.length() + 1;
   res.s_ = new char[bufferSize];
 
-  char *o = res.s_;
+  char* o = res.s_;
   if (s_)
-    for (char *i = s_; *i; i++, o++) {
+    for (char* i = s_; *i; i++, o++) {
       *o = *i;
     }
   if (b.s_)
-    for (char *i = b.s_; *i; i++, o++) {
+    for (char* i = b.s_; *i; i++, o++) {
       *o = *i;
     }
 
@@ -60,11 +61,11 @@ Str Str::operator+(const Str &b) {
   return (res);
 }
 
-char &Str::operator[](size_t index) {
+char& Str::operator[](size_t index) {
   return this->s_[index];
 }
 
-const char &Str::operator[](size_t index) const {
+const char& Str::operator[](size_t index) const {
   return this->s_[index];
 }
 
@@ -84,7 +85,7 @@ void Str::clear() {
   this->s_ = nullptr;
 }
 
-void Str::assign(const char *text) {
+void Str::assign(const char* text) {
   this->clear();
   if (!text) {
     return;
@@ -94,7 +95,7 @@ void Str::assign(const char *text) {
 
   for (length = 0; text[length]; ++length);
 
-  s_ = new char[length + 1]{0};
+  s_ = new char[length + 1]{ 0 };
 
   for (size_t i = 0; i < length; ++i) {
     this->s_[i] = text[i];
@@ -109,27 +110,27 @@ Str::iterator Str::end() const {
   return iterator(nullptr);
 }
 
-Str::iterator::iterator(const iterator &other) {
+Str::iterator::iterator(const iterator& other) {
   this->ptr_ = other.ptr_;
 }
 
-Str::iterator::iterator(char *c) {
+Str::iterator::iterator(char* c) {
   this->ptr_ = c;
 }
 
-char &Str::iterator::operator*() {
+char& Str::iterator::operator*() {
   return *this->ptr_;
 }
 
-bool Str::iterator::operator==(const iterator &other) {
+bool Str::iterator::operator==(const iterator& other) {
   return this->ptr_ == other.ptr_;
 }
 
-bool Str::iterator::operator!=(const iterator &other) {
+bool Str::iterator::operator!=(const iterator& other) {
   return this->ptr_ != other.ptr_;
 }
 
-Str::iterator &Str::iterator::operator++() {
+Str::iterator& Str::iterator::operator++() {
   this->ptr_++;
 
   if (!*this->ptr_) {
@@ -138,8 +139,8 @@ Str::iterator &Str::iterator::operator++() {
   return *this;
 }
 
-std::ostream &operator<<(std::ostream &o, const Str &str) {
-  for (char &i : str) {
+std::ostream& operator<<(std::ostream& o, const Str& str) {
+  for (char& i : str) {
     o << i;
   }
   return o;
