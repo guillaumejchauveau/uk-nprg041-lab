@@ -1,12 +1,12 @@
 #include "aint.hpp"
 #include <algorithm>
-#include <exception>
-#include <cstring>
 #include <cmath>
+#include <cstring>
+#include <exception>
 
-void aint::breakout_dblock(const dblock_t& du, block_t& u0, block_t& u1) {
-  u0 = static_cast<uint32_t> (du);
-  u1 = static_cast<uint32_t> (du >> BLOCK_WIDTH);
+void aint::breakout_dblock(const dblock_t &du, block_t &u0, block_t &u1) {
+  u0 = static_cast<uint32_t>(du);
+  u1 = static_cast<uint32_t>(du >> BLOCK_WIDTH);
 }
 
 aint::aint() {
@@ -37,28 +37,28 @@ aint aint::from_dblock(const dblock_t du) {
   return a;
 }
 
-aint::aint(char* str) {
+aint::aint(char *str) {
   this->capacity_ = 0;
   this->size_ = 0;
   this->blocks_ = nullptr;
   this->operator=(str);
 }
 
-aint::aint(const aint& other) {
+aint::aint(const aint &other) {
   this->capacity_ = 0;
   this->size_ = 0;
   this->blocks_ = nullptr;
   this->operator=(other);
 }
 
-aint::aint(aint&& other) noexcept {
+aint::aint(aint &&other) noexcept {
   this->capacity_ = 0;
   this->size_ = 0;
   this->blocks_ = nullptr;
   this->operator=(std::move(other));
 }
 
-aint& aint::operator=(block_t u) {
+aint &aint::operator=(block_t u) {
   if (u == 0) {
     this->resize(0);
     return *this;
@@ -69,7 +69,7 @@ aint& aint::operator=(block_t u) {
   return *this;
 }
 
-aint& aint::operator=(char* str) {
+aint &aint::operator=(char *str) {
   // Number of blocks that will be required to fit the string.
   size_t str_block_count = (std::strlen(str) + BLOCK_WIDTH - 1) / BLOCK_WIDTH;
   if (str_block_count == 0) {
@@ -99,7 +99,7 @@ aint& aint::operator=(char* str) {
   return *this;
 }
 
-aint& aint::operator=(const aint& other) {
+aint &aint::operator=(const aint &other) {
   if (this == &other) {
     return *this;
   }
@@ -112,7 +112,7 @@ aint& aint::operator=(const aint& other) {
   return *this;
 }
 
-aint& aint::operator=(aint&& other) noexcept {
+aint &aint::operator=(aint &&other) noexcept {
   if (this == &other) {
     return *this;
   }
@@ -127,17 +127,11 @@ aint& aint::operator=(aint&& other) noexcept {
   return *this;
 }
 
-aint::~aint() {
-  free(this->blocks_);
-}
+aint::~aint() { free(this->blocks_); }
 
-size_t aint::capacity() const noexcept {
-  return this->capacity_;
-}
+size_t aint::capacity() const noexcept { return this->capacity_; }
 
-size_t aint::size() const noexcept {
-  return this->size_;
-}
+size_t aint::size() const noexcept { return this->size_; }
 
 void aint::resize(size_t n) {
   if (n == this->capacity()) {
@@ -151,7 +145,8 @@ void aint::resize(size_t n) {
     this->size_ = 0;
     return;
   }
-  auto new_blocks = static_cast<block_t*>(realloc(this->blocks_, n * sizeof(block_t)));
+  auto new_blocks =
+      static_cast<block_t *>(realloc(this->blocks_, n * sizeof(block_t)));
   if (new_blocks == nullptr) {
     throw std::bad_alloc();
   }
@@ -181,11 +176,13 @@ void aint::shrink_to_fit() {
 
 void aint::refresh_size() {
   size_t real_block_count = this->size();
-  for (; real_block_count > 0 && this->blocks_[real_block_count - 1] == 0; real_block_count--) {}
+  for (; real_block_count > 0 && this->blocks_[real_block_count - 1] == 0;
+       real_block_count--) {
+  }
   this->size_ = real_block_count;
 }
 
-void aint::swap(aint& other) noexcept {
+void aint::swap(aint &other) noexcept {
   if (this == &other) {
     return;
   }
@@ -206,9 +203,9 @@ bool aint::zero() const noexcept {
   return this->blocks_ == nullptr || this->size() == 0;
 }
 
-char* aint::to_string() const {
+char *aint::to_string() const {
   if (this->zero()) {
-    auto render = static_cast<char*>(calloc(2, sizeof(char)));
+    auto render = static_cast<char *>(calloc(2, sizeof(char)));
     if (render == nullptr) {
       throw std::bad_alloc();
     }
@@ -217,7 +214,8 @@ char* aint::to_string() const {
     return render;
   }
 
-  auto render = static_cast<char*>(calloc(BLOCK_WIDTH * this->size() + 1, sizeof(char)));
+  auto render =
+      static_cast<char *>(calloc(BLOCK_WIDTH * this->size() + 1, sizeof(char)));
   if (render == nullptr) {
     throw std::bad_alloc();
   }
@@ -240,7 +238,7 @@ char* aint::to_string() const {
  * Lower/greater-like operations are done using the most-significant block first
  * on to the least. Indices are shifted by one to prevent underflow.
  */
-bool aint::operator<(const aint& other) const {
+bool aint::operator<(const aint &other) const {
   if (this->size() < other.size()) {
     return true;
   }
@@ -259,7 +257,7 @@ bool aint::operator<(const aint& other) const {
   return false;
 }
 
-bool aint::operator>(const aint& other) const {
+bool aint::operator>(const aint &other) const {
   if (this->size() > other.size()) {
     return true;
   }
@@ -278,7 +276,7 @@ bool aint::operator>(const aint& other) const {
   return false;
 }
 
-bool aint::operator<=(const aint& other) const {
+bool aint::operator<=(const aint &other) const {
   if (this->size() < other.size()) {
     return true;
   }
@@ -297,7 +295,7 @@ bool aint::operator<=(const aint& other) const {
   return true;
 }
 
-bool aint::operator>=(const aint& other) const {
+bool aint::operator>=(const aint &other) const {
   if (this->size() > other.size()) {
     return true;
   }
@@ -316,7 +314,7 @@ bool aint::operator>=(const aint& other) const {
   return true;
 }
 
-bool aint::operator==(const aint& other) const {
+bool aint::operator==(const aint &other) const {
   if (this->size() != other.size()) {
     return false;
   }
@@ -329,7 +327,7 @@ bool aint::operator==(const aint& other) const {
   return true;
 }
 
-bool aint::operator!=(const aint& other) const {
+bool aint::operator!=(const aint &other) const {
   if (this->size() != other.size()) {
     return true;
   }
@@ -342,7 +340,7 @@ bool aint::operator!=(const aint& other) const {
   return false;
 }
 
-aint& aint::operator+=(const aint& other) {
+aint &aint::operator+=(const aint &other) {
   if (this->zero()) {
     *this = other;
     return *this;
@@ -377,7 +375,7 @@ aint& aint::operator+=(const aint& other) {
   return *this;
 }
 
-aint& aint::operator-=(const aint& other) {
+aint &aint::operator-=(const aint &other) {
   if (other > *this) {
     throw std::invalid_argument("Cannot subtract a higher number");
   }
@@ -407,7 +405,7 @@ aint& aint::operator-=(const aint& other) {
   return *this;
 }
 
-aint& aint::operator*=(const aint& other) {
+aint &aint::operator*=(const aint &other) {
   if (this->zero()) {
     return *this;
   }
@@ -419,11 +417,12 @@ aint& aint::operator*=(const aint& other) {
   size_t new_size = this->size() + other.size();
   result.reserve(new_size);
 
-  for (size_t other_block_i = 0; other_block_i < other.size(); other_block_i++) {
+  for (size_t other_block_i = 0; other_block_i < other.size();
+       other_block_i++) {
     for (size_t this_block_i = 0; this_block_i < this->size(); this_block_i++) {
       product = aint::from_dblock(
-        static_cast<dblock_t>(this->blocks_[this_block_i])
-          * static_cast<dblock_t>(other.blocks_[other_block_i]));
+          static_cast<dblock_t>(this->blocks_[this_block_i]) *
+          static_cast<dblock_t>(other.blocks_[other_block_i]));
       product <<= (this_block_i + other_block_i) * BLOCK_WIDTH;
       result += product;
     }
@@ -434,7 +433,7 @@ aint& aint::operator*=(const aint& other) {
   return *this;
 }
 
-aint& aint::operator/=(const aint& other) {
+aint &aint::operator/=(const aint &other) {
   if (other.zero()) {
     throw std::invalid_argument("division by zero");
   }
@@ -450,9 +449,10 @@ aint& aint::operator/=(const aint& other) {
     throw std::overflow_error("Dividend size too large for bit-shifting");
   }
   aint divisor = other, divisor_pow = 1u;
-  divisor <<= bit_count; // Align divisor with dividend.
+  divisor <<= bit_count;     // Align divisor with dividend.
   divisor_pow <<= bit_count; // Save the power of the divisor for the quotient.
-  aint& rest = *this; // Just to keep the code clear without creating a new aint.
+  aint &rest =
+      *this; // Just to keep the code clear without creating a new aint.
   aint quotient;
   while (rest >= other) {
     if (rest >= divisor) {
@@ -468,7 +468,7 @@ aint& aint::operator/=(const aint& other) {
   return *this;
 }
 
-aint& aint::operator%=(const aint& other) {
+aint &aint::operator%=(const aint &other) {
   if (other.zero()) {
     throw std::invalid_argument("division by zero");
   }
@@ -496,7 +496,7 @@ aint& aint::operator%=(const aint& other) {
   return *this;
 }
 
-aint& aint::operator<<=(size_t offset) {
+aint &aint::operator<<=(size_t offset) {
   if (this->zero() || offset == 0) {
     return *this;
   }
@@ -512,7 +512,8 @@ aint& aint::operator<<=(size_t offset) {
       new_block_b = 0;
     } else {
       // Computes the overflowing part.
-      new_block_b = this->blocks_[i - 1] >> (BLOCK_WIDTH - offset % BLOCK_WIDTH);
+      new_block_b =
+          this->blocks_[i - 1] >> (BLOCK_WIDTH - offset % BLOCK_WIDTH);
     }
     this->blocks_[i - 1] = 0;
     this->blocks_[i - 1 + block_offset] = new_block_a;
@@ -526,7 +527,7 @@ aint& aint::operator<<=(size_t offset) {
   return *this;
 }
 
-aint& aint::operator>>=(size_t offset) {
+aint &aint::operator>>=(size_t offset) {
   if (this->zero() || offset == 0) {
     return *this;
   }
@@ -562,31 +563,31 @@ aint& aint::operator>>=(size_t offset) {
   return *this;
 }
 
-aint aint::operator+(const aint& other) const {
+aint aint::operator+(const aint &other) const {
   aint res = *this;
   res += other;
   return res;
 }
 
-aint aint::operator-(const aint& other) const {
+aint aint::operator-(const aint &other) const {
   aint res = *this;
   res -= other;
   return res;
 }
 
-aint aint::operator*(const aint& other) const {
+aint aint::operator*(const aint &other) const {
   aint res = *this;
   res *= other;
   return res;
 }
 
-aint aint::operator/(const aint& other) const {
+aint aint::operator/(const aint &other) const {
   aint res = *this;
   res /= other;
   return res;
 }
 
-aint aint::operator%(const aint& other) const {
+aint aint::operator%(const aint &other) const {
   aint res = *this;
   res %= other;
   return res;
@@ -604,17 +605,18 @@ aint aint::operator>>(size_t offset) const {
   return res;
 }
 
-std::ostream& operator<<(std::ostream& o, const aint& ai) {
+std::ostream &operator<<(std::ostream &o, const aint &ai) {
   auto str = ai.to_string();
   o << str;
   free(str);
   return o;
 }
 
-std::istream& operator>>(std::istream& i, aint& ai) {
+std::istream &operator>>(std::istream &i, aint &ai) {
   size_t input_buffer_size = 10;
   size_t input_size = 0;
-  auto input_buffer = static_cast<char*>(calloc(input_buffer_size, sizeof(char)));
+  auto input_buffer =
+      static_cast<char *>(calloc(input_buffer_size, sizeof(char)));
   if (input_buffer == nullptr) {
     throw std::bad_alloc();
   }
@@ -622,7 +624,8 @@ std::istream& operator>>(std::istream& i, aint& ai) {
     if (!isspace(c)) {
       if (input_size + 2 > input_buffer_size) {
         input_buffer_size *= 2;
-        input_buffer = static_cast<char*>(realloc(input_buffer, input_buffer_size * sizeof(char)));
+        input_buffer = static_cast<char *>(
+            realloc(input_buffer, input_buffer_size * sizeof(char)));
         if (input_buffer == nullptr) {
           throw std::bad_alloc();
         }
@@ -634,8 +637,7 @@ std::istream& operator>>(std::istream& i, aint& ai) {
   input_buffer[input_size] = '\0';
   try {
     ai = input_buffer;
-  }
-  catch (std::invalid_argument&) {
+  } catch (std::invalid_argument &) {
     i.setstate(std::ios::failbit);
   }
   free(input_buffer);
