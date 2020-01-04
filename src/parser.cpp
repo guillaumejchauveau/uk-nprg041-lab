@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <list>
 #include <memory>
@@ -25,6 +24,7 @@ struct Token {
     this->position = position;
     this->type = type;
     this->value = value;
+    this->name = "<unknown>";
   }
   Token(int position, string &&name) {
     this->position = position;
@@ -55,6 +55,9 @@ class SyntaxError : public runtime_error {
   Token token;
 
 public:
+  SyntaxError()
+      : runtime_error("Unexpected end of input"),
+        token(0, token_type::integer) {}
   explicit SyntaxError(Token token)
       : runtime_error("Syntax error near token '" + token.format() +
                       "' at position " + to_string(token.position)),
@@ -64,17 +67,13 @@ public:
 vector<Token> tokenize(istream &in) {
   char c;
   vector<Token> res;
+  // Manually adds statement group tokens for parsing.
+  res.emplace_back(-1, token_type::single_char, '{');
   int pos = 0;
   while (in) {
     c = in.peek();
     if (c < 0) {
       continue;
-    }
-    if (c == '.') {
-      // use instead of EOF
-      pos++;
-      in.get();
-      break;
     }
     if (isspace(c)) {
       pos++;
@@ -99,10 +98,11 @@ vector<Token> tokenize(istream &in) {
     }
 
     res.emplace_back(pos, token_type::single_char, c);
-    // cerr << "Unexpected character: '" << c << "' " << int(c) << endl;
     pos++;
     in.get();
   }
+  // Manually adds statement group tokens for parsing.
+  res.emplace_back(-1, token_type::single_char, '}');
   return res;
 }
 
@@ -113,18 +113,70 @@ vector<Token> tokenize(istream &in) {
 
 class Expression {
 public:
-  virtual string toString() = 0;
+  virtual void inputProgram(ostream &o) const = 0;
   virtual size_t outputProgram(ostream &o) const = 0;
 };
+
+ostream &operator<<(ostream &o, const Expression &expression) {
+  expression.outputProgram(o);
+  return o;
+}
 
 class Program {
 public:
-  virtual string toString() = 0;
+  virtual void inputProgram(ostream &o) const = 0;
   virtual size_t outputProgram(ostream &o) const = 0;
 };
 
+ostream &operator<<(ostream &o, const Program &program) {
+  program.outputProgram(o);
+  return o;
+}
+
 /*
  * program implementations
+ */
+
+/**
+ * A list of programs ( "{ prog1; prog2; ... }" ).
+ */
+class StatementGroup : public Program {
+protected:
+  list<unique_ptr<Program>> statements;
+
+public:
+  void addStatement(unique_ptr<Program> &&statement) {
+    this->statements.push_back(move(statement));
+  }
+  void inputProgram(ostream &o) const override {
+    o << "{";
+    ostringstream s;
+    for (const auto &statement : this->statements) {
+      s << endl << "  ";
+      statement->inputProgram(s);
+      s << ";";
+    }
+    auto render = s.str();
+    if (render.back() == ';') {
+      render.pop_back();
+    }
+    o << render << endl << "}";
+  }
+
+  size_t outputProgram(ostream &o) const override {
+    size_t size = 0;
+    for (const auto &statement : this->statements) {
+      size += statement->outputProgram(o);
+    }
+    return size;
+  }
+};
+
+/**
+ * Three types of statements:
+ * - identifier only (read, write)
+ * - identifier + expression (assign)
+ * - identifier + program (conditionals, cycle...)
  */
 class Statement : public Program {
 protected:
@@ -140,38 +192,12 @@ public:
       : identifier(move(identifier)), program(move(statement)) {}
 };
 
-class StatementGroup : public Program {
-protected:
-  list<unique_ptr<Program>> statements;
-
-public:
-  void addStatement(unique_ptr<Program> &&statement) {
-    this->statements.push_back(move(statement));
-  }
-  string toString() override {
-    string render = "{";
-    for (const auto &statement : this->statements) {
-      render += "\n  " + statement->toString() + ";";
-    }
-    if (render.back() == ';') {
-      render.pop_back();
-    }
-    return render + "\n}";
-  }
-
-  size_t outputProgram(ostream &o) const override {
-    size_t size = 0;
-    for (const auto &statement : this->statements) {
-      size += statement->outputProgram(o);
-    }
-    return size;
-  }
-};
-
 class Out : public Statement {
 public:
   explicit Out(string identifier) : Statement(move(identifier)) {}
-  string toString() override { return "< " + this->identifier; }
+  void inputProgram(ostream &o) const override {
+    o << "< " << this->identifier;
+  }
 
   size_t outputProgram(ostream &o) const override {
     o << "LOADVAR " << this->identifier << endl;
@@ -183,7 +209,9 @@ public:
 class In : public Statement {
 public:
   explicit In(string identifier) : Statement(move(identifier)) {}
-  string toString() override { return "> " + this->identifier; }
+  void inputProgram(ostream &o) const override {
+    o << "> " << this->identifier;
+  }
 
   size_t outputProgram(ostream &o) const override {
     o << "READ" << endl;
@@ -196,8 +224,9 @@ class Assign : public Statement {
 public:
   Assign(string identifier, unique_ptr<Expression> &&expression)
       : Statement(move(identifier), move(expression)) {}
-  string toString() override {
-    return "= " + this->identifier + " " + this->expression->toString();
+  void inputProgram(ostream &o) const override {
+    o << "= " << this->identifier << " ";
+    this->expression->inputProgram(o);
   }
 
   size_t outputProgram(ostream &o) const override {
@@ -211,8 +240,9 @@ class While : public Statement {
 public:
   While(string identifier, unique_ptr<Program> &&program)
       : Statement(move(identifier), move(program)) {}
-  string toString() override {
-    return "@ " + this->identifier + " " + this->program->toString();
+  void inputProgram(ostream &o) const override {
+    o << "@ " + this->identifier + " ";
+    this->program->inputProgram(o);
   }
 
   size_t outputProgram(ostream &o) const override {
@@ -230,8 +260,9 @@ class Conditional : public Statement {
 public:
   Conditional(string identifier, unique_ptr<Program> &&program)
       : Statement(move(identifier), move(program)) {}
-  string toString() override {
-    return "? " + this->identifier + " " + this->program->toString();
+  void inputProgram(ostream &o) const override {
+    o << "? " + this->identifier + " ";
+    this->program->inputProgram(o);
   }
 
   size_t outputProgram(ostream &o) const override {
@@ -248,8 +279,9 @@ class NConditional : public Statement {
 public:
   NConditional(string identifier, unique_ptr<Program> &&program)
       : Statement(move(identifier), move(program)) {}
-  string toString() override {
-    return "! " + this->identifier + " " + this->program->toString();
+  void inputProgram(ostream &o) const override {
+    o << "! " + this->identifier + " ";
+    this->program->inputProgram(o);
   }
 
   size_t outputProgram(ostream &o) const override {
@@ -272,7 +304,7 @@ class Number : public Expression {
 public:
   explicit Number(int v) : val(v) {}
 
-  string toString() override { return ::to_string(this->val); }
+  void inputProgram(ostream &o) const override { o << this->val; }
   size_t outputProgram(ostream &o) const override {
     o << "INT " << this->val << endl;
     return 1;
@@ -284,7 +316,7 @@ class Variable : public Expression {
 
 public:
   explicit Variable(string v) : name(std::move(v)) {}
-  string toString() override { return this->name; }
+  void inputProgram(ostream &o) const override { o << this->name; }
   size_t outputProgram(ostream &o) const override {
     o << "LOADVAR " << this->name << endl;
     return 1;
@@ -301,9 +333,12 @@ public:
   Operator(operator_type type, unique_ptr<Expression> &&left,
            unique_ptr<Expression> &&right)
       : type(type), left(move(left)), right(move(right)) {}
-  string toString() override {
-    return "(" + this->left->toString() + static_cast<char>(this->type) +
-           this->right->toString() + ")";
+  void inputProgram(ostream &o) const override {
+    o << "(";
+    this->left->inputProgram(o);
+    o << static_cast<char>(this->type);
+    this->right->inputProgram(o);
+    o << ")";
   }
 
   size_t outputProgram(ostream &o) const override {
@@ -335,7 +370,7 @@ unique_ptr<Expression> ParseExpr(Pos &begin, Pos end);
 
 unique_ptr<Expression> ParseSimpleExpr(Pos &begin, Pos end) {
   if (begin == end)
-    throw SyntaxError(*begin);
+    throw SyntaxError();
   if (*begin == token_type::integer) {
     unique_ptr<Expression> val = make_unique<Number>(begin->value);
     begin++;
@@ -410,12 +445,15 @@ unique_ptr<Expression> ParseExpr(Pos &begin, Pos end) {
 unique_ptr<Program> ParseStatementGroup(Pos &begin, Pos end);
 
 unique_ptr<Program> ParseStatement(Pos &begin, Pos end) {
+  // All statements start with a single_char token.
   if (begin == end || *begin != token_type::single_char) {
-    throw SyntaxError(*begin);
+    throw SyntaxError();
   }
   auto original_begin = begin;
   char statement_type = static_cast<char>(begin->value);
+  // Skips the statement type token.
   begin++;
+  // The next token of a statement should be an identifier.
   if (begin == end || *begin != token_type::identifier) {
     begin = original_begin;
     throw SyntaxError(*begin);
@@ -425,6 +463,7 @@ unique_ptr<Program> ParseStatement(Pos &begin, Pos end) {
   unique_ptr<Expression> expression;
   unique_ptr<Program> program;
 
+  // Skips the identifier.
   begin++;
 
   switch (statement_type) {
@@ -433,6 +472,7 @@ unique_ptr<Program> ParseStatement(Pos &begin, Pos end) {
   case '>':
     return make_unique<In>(identifier);
   case '=':
+    // Requires an expression.
     expression = ParseExpr(begin, end);
     if (!expression) {
       begin = original_begin;
@@ -442,6 +482,7 @@ unique_ptr<Program> ParseStatement(Pos &begin, Pos end) {
   case '@':
   case '?':
   case '!':
+    // All three require a statement/statement group.
     program = ParseStatementGroup(begin, end);
     if (!program) {
       begin = original_begin;
@@ -456,32 +497,50 @@ unique_ptr<Program> ParseStatement(Pos &begin, Pos end) {
       return make_unique<NConditional>(identifier, move(program));
     }
   default:
+    // Unknown statement type.
+    begin = original_begin;
     throw SyntaxError(*begin);
   }
 }
 
 unique_ptr<Program> ParseStatementGroup(Pos &begin, Pos end) {
   if (begin == end) {
-    throw SyntaxError(*begin);
+    throw SyntaxError();
   }
   auto original_begin = begin;
 
-  if (*begin == '{') {
-    begin++;
+  // Not actually a group, just a simple statement.
+  if (*begin != '{') {
+    return ParseStatement(begin, end);
   }
+  // Skips the '{'.
+  begin++;
 
   auto group = make_unique<StatementGroup>();
 
+  bool hasSemiColon = false;
   while (*begin != '}' && begin != end) {
     auto statement = ParseStatement(begin, end);
-    if (*begin == ';') {
+    hasSemiColon = *begin == ';';
+    // Enforces trailing semi-colon except for the last statement.
+    if (!hasSemiColon && (*begin != '}' && begin != end)) {
+      throw SyntaxError(*begin);
+    }
+    if (hasSemiColon) {
       begin++;
     }
     group->addStatement(move(statement));
   }
-  if (*begin == '}') {
-    begin++;
+  // Last statement should not have a semi-colon.
+  if (hasSemiColon) {
+    throw SyntaxError(*(begin - 1));
   }
+  // Missing '}' for group end.
+  if (*begin != '}') {
+    throw SyntaxError(*begin);
+  }
+  // Skips '{'.
+  begin++;
   return group;
 }
 
@@ -490,12 +549,19 @@ unique_ptr<Program> ParseStatementGroup(Pos &begin, Pos end) {
  */
 
 int main() {
+  //auto s = istringstream("<a");
+  auto &s = cin;
   try {
-    auto tokens = tokenize(cin);
-    auto b = tokens.begin();
-    auto e = ParseStatementGroup(b, tokens.end());
-    e->outputProgram(cout);
-    cout << "QUIT";
+    auto tokens = tokenize(s);
+    auto begin = tokens.begin();
+    auto end = tokens.end();
+    auto e = ParseStatementGroup(begin, end);
+    // Some illegal tokens remaining.
+    if (begin != end) {
+      throw SyntaxError(*begin);
+    }
+    cout << *e << "QUIT";
+    // e->inputProgram(cerr);
   } catch (SyntaxError &e) {
     cout << "FAIL";
   }
